@@ -18,6 +18,7 @@ use tokio_tungstenite::tungstenite::Bytes;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
 use tokio_tungstenite::tungstenite::http::header::HeaderValue;
 use tokio_tungstenite::tungstenite::protocol::{ CloseFrame, Message };
+use ulid::Ulid;
 
 // todo figure out if we can modify filter settings from ws, if so we can do gradual opacity
 // use new config section for that i think, [[transparency-source]] or something idk
@@ -158,7 +159,7 @@ async fn async_main() {
 	// todo validate the sources config around here before doing anything else
 	// fetch obs for sources and filters and check
 
-	let (stream_send, mut stream_recv) = stream.split();
+	let (mut stream_send, mut stream_recv) = stream.split();
 	let (shutdown_send, mut shutdown_recv) = channel::<()>(1);
 	let semaphore_total = 1000;
 	let semaphore = Arc::new(Semaphore::new(semaphore_total));
@@ -172,8 +173,13 @@ async fn async_main() {
 		loop {
 			tokio::select! {
 				biased;
-				_ = stream_recv.next() => {
-					// dumping msgs for now <loopTeehee>
+				msg = stream_recv.next() => {
+					// todo dumping msgs for now <loopTeehee>
+					if let Some(Ok(Message::Binary(msg))) = msg
+						&& let Ok(msg) = rmp_serde::from_slice::<serde_json::Value>(&msg)
+					{
+						dbg!(msg);
+					}
 				}
 				_ = shutdown_recv.recv() => { break }
 			}
@@ -211,7 +217,18 @@ async fn async_main() {
 			};
 
 			for source in &config.source {
-				// todo
+				// todo test position against the config
+				let req = ObsSetSourceFilterEnabled {
+					source_name: Cow::Borrowed(&source.source),
+					filter_name: Cow::Borrowed(&source.filter),
+					// todo
+					filter_enabled: true
+				}.wrap_in_request_op_code(Ulid::generate());
+				let req = rmp_serde::to_vec_named(&req).unwrap();
+
+				if let Err(e) = stream_send.send(Message::Binary(Bytes::from(req))).await {
+					eprintln!("error sending request: {e}");
+				}
 			}
 			// todo filter request SetSourceFilterEnabled
 			// todo filter request SetSourceFilterSettings
@@ -348,6 +365,16 @@ struct ObsIdentified {
 	negotiated_rpc_version: usize
 }
 
+#[derive(Serialize)]
+struct ObsRequest<'h, T> {
+	#[serde(rename = "requestType")]
+	request_type: Cow<'h, str>,
+	#[serde(rename = "requestId")]
+	request_id: Ulid,
+	#[serde(rename = "requestData")]
+	request_data: T
+}
+
 #[derive(Deserialize)]
 struct CctPosition {
 	#[serde(rename = "madelineScreenPosition")]
@@ -384,4 +411,45 @@ impl<'de> Deserialize<'de> for MadelineScreenPosition {
 
 		deserializer.deserialize_str(SmolSquishVisitor)
 	}
+}
+
+#[derive(Serialize)]
+struct ObsSetSourceFilterEnabled<'h> {
+	#[serde(rename = "sourceName")]
+	source_name: Cow<'h, str>,
+	#[serde(rename = "filterName")]
+	filter_name: Cow<'h, str>,
+	#[serde(rename = "filterEnabled")]
+	filter_enabled: bool
+}
+
+impl<'h> ObsRequestType for ObsSetSourceFilterEnabled<'h> {
+	fn request_type() -> &'static str {
+		"SetSourceFilterEnabled"
+	}
+}
+
+trait WrapInOpCode: Sized {
+	fn wrap_in_request_op_code(self, request_id: Ulid) -> OpCode<ObsRequest<'static, Self>>
+	where
+		Self: ObsRequestType
+	{
+		let d = ObsRequest {
+			request_type: Cow::Borrowed(Self::request_type()),
+			request_id,
+			request_data: self
+		};
+
+		OpCode { op: 6, d }
+	}
+
+	// fn wrap_in_request_batch_op_code(self) -> OpCode<Self> {
+	// 	OpCode { op: 8, d: self }
+	// }
+}
+
+impl<T> WrapInOpCode for T {}
+
+trait ObsRequestType {
+	fn request_type() -> &'static str;
 }
