@@ -1,5 +1,11 @@
 # any line starting with a # is a comment and will be ignored
 
+[general]
+# how long to check for CCT for position updates, in milliseconds
+# might contribute to game lag if set too low
+# one frame is 16 2/3 ms (16.6666666666666666666666666666666666...667ms)
+position-polling-interval = 16
+
 # obs websocket connection settings
 [obs]
 host = "127.0.0.1"

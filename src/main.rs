@@ -1,10 +1,19 @@
 use ct_codecs::{ Base64, Encoder as _ };
 use futures::{ SinkExt as _, StreamExt as _ };
-use serde::{ Deserialize, Serialize };
+use serde::{ Deserialize, Deserializer, Serialize };
+use serde::de::{ Error as DeError, Visitor };
 use sha2::{ Digest as _, Sha256 };
-use std::fs;
+use std::{ fmt, fs };
 use std::borrow::Cow;
 use std::io::{ self, Read as _, Write as _ };
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::signal::ctrl_c;
+use tokio::sync::Semaphore;
+use tokio::sync::broadcast::channel;
+use tokio::sync::broadcast::error::TryRecvError;
+use tokio::task::spawn_local as spawn;
+use tokio::time::{ MissedTickBehavior, interval, sleep };
 use tokio_tungstenite::tungstenite::Bytes;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
 use tokio_tungstenite::tungstenite::http::header::HeaderValue;
@@ -24,11 +33,13 @@ fn main() {
 async fn async_main() {
 	let mut config_buf = Vec::new();
 	let config = Config::read_or_init(&mut config_buf);
+
 	let url = format!(
 		"ws://{host}:{port}",
 		host = config.obs.host,
 		port = config.obs.port
 	);
+
 	let mut req = url
 		.into_client_request()
 		.expect("invalid connection details");
@@ -110,7 +121,8 @@ async fn async_main() {
 			authentication: auth_str.as_deref(),
 			// todo
 			event_subscriptions: const {
-				0
+				// EventSubscription::Scenes
+				1 << 2
 			}
 		}
 	};
@@ -143,20 +155,90 @@ async fn async_main() {
 	assert_eq!(identified.op, 2, "invalid opcode (expected 2)");
 	assert_eq!(identified.d.negotiated_rpc_version, 1, "invalid negotiated rpc version (expected 1)");
 
-	// todo SetSourceFilterEnabled
-	// todo CurrentProgramSceneChanged for tracking scenes
-	// todo event EventSubscription::Scenes (1 << 2)
-	// todo filter request SetSourceFilterEnabled
-	// todo filter request SetSourceFilterSettings
+	// todo validate the sources config around here before doing anything else
+	// fetch obs for sources and filters and check
 
+	let (stream_send, mut stream_recv) = stream.split();
+	let (shutdown_send, mut shutdown_recv) = channel::<()>(1);
+	let semaphore_total = 1000;
+	let semaphore = Arc::new(Semaphore::new(semaphore_total));
+
+	// just consuming all ws msgs for now since we have not yet a use for them
+	// todo
+	let _semaphore = Arc::clone(&semaphore);
+	spawn(async move {
+		let _permit = _semaphore.acquire_owned();
+
+		loop {
+			tokio::select! {
+				biased;
+				_ = stream_recv.next() => {
+					// dumping msgs for now <loopTeehee>
+				}
+				_ = shutdown_recv.recv() => { break }
+			}
+		}
+	});
+
+	let _semaphore = Arc::clone(&semaphore);
+	let mut shutdown_recv = shutdown_send.subscribe();
+	spawn(async move {
+		let _permit = _semaphore.acquire_owned();
+		let mut interval = interval(Duration::from_millis(config.general.position_polling_interval as _));
+		interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+		while matches!(shutdown_recv.try_recv(), Err(TryRecvError::Empty)) {
+			interval.tick().await;
+
+			// todo fetch localhost api and send updates as needed
+			let position = match reqwest::get("http://localhost:32270/cct/madelineScreenPosition").await {
+				Ok(position) => { position }
+				// todo add timestamps?
+				Err(e) => {
+					eprintln!("error fetching from CCT: {e}");
+					continue
+				}
+			};
+
+			let position = match position.json::<CctPosition>().await {
+				Ok(CctPosition { madeline_screen_position }) => { madeline_screen_position }
+				Err(e) => {
+					// todo add timestamps
+					// todo better handling of the "out of map" case to not spam console
+					eprintln!("error parsing CCT response: {e:?}");
+					continue
+				}
+			};
+
+			for source in &config.source {
+				// todo
+			}
+			// todo filter request SetSourceFilterEnabled
+			// todo filter request SetSourceFilterSettings
+		}
+	});
+
+	// todo CurrentProgramSceneChanged for tracking scenes
+	// do this via spsc
+
+	ctrl_c().await.expect("failed to listen for ctrl+c");
+	while semaphore.available_permits() != semaphore_total {
+		sleep(Duration::from_millis(500)).await;
+	}
 }
 
 #[derive(Deserialize)]
 struct Config<'h> {
+	general: GeneralConfig,
 	#[serde(borrow)]
 	obs: ObsConfig<'h>,
-	#[serde(borrow)]
-	source: Vec<SourceConfig<'h>>
+	source: Vec<SourceConfig>
+}
+
+#[derive(Deserialize)]
+struct GeneralConfig {
+	#[serde(rename = "position-polling-interval")]
+	position_polling_interval: usize
 }
 
 #[derive(Deserialize)]
@@ -169,13 +251,11 @@ struct ObsConfig<'h> {
 }
 
 #[derive(Deserialize)]
-struct SourceConfig<'h> {
-	#[serde(borrow, default)]
-	scene: Option<Cow<'h, str>>,
-	#[serde(borrow)]
-	source: Cow<'h, str>,
-	#[serde(borrow)]
-	filter: Cow<'h, str>,
+struct SourceConfig {
+	#[serde(default)]
+	scene: Option<String>,
+	source: String,
+	filter: String,
 	x: u16,
 	y: u16,
 	width: u16,
@@ -266,4 +346,42 @@ struct ObsIdentify<'h> {
 struct ObsIdentified {
 	#[serde(rename = "negotiatedRpcVersion")]
 	negotiated_rpc_version: usize
+}
+
+#[derive(Deserialize)]
+struct CctPosition {
+	#[serde(rename = "madelineScreenPosition")]
+	madeline_screen_position: MadelineScreenPosition
+}
+
+struct MadelineScreenPosition {
+	x: u16,
+	y: u16
+}
+
+impl<'de> Deserialize<'de> for MadelineScreenPosition {
+	fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		struct SmolSquishVisitor;
+
+		impl<'de> Visitor<'de> for SmolSquishVisitor {
+			type Value = MadelineScreenPosition;
+
+			fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				f.write_str("\"x, y\" coords")
+			}
+
+			fn visit_str<E: DeError>(self, v: &str) -> Result<MadelineScreenPosition, E> {
+				let Some((x, y)) = v.split_once(",") else {
+					return Err(E::custom(format!("found not coords in \"x, y\" format: {v}")))
+				};
+
+				let x = x.trim().parse().map_err(|e| E::custom(format!("error parsing x as a number: {e}")))?;
+				let y = y.trim().parse().map_err(|e| E::custom(format!("error parsing y as a number: {e}")))?;
+
+				Ok(MadelineScreenPosition { x, y })
+			}
+		}
+
+		deserializer.deserialize_str(SmolSquishVisitor)
+	}
 }
