@@ -3,7 +3,7 @@ use futures::{ SinkExt as _, StreamExt as _ };
 use serde::{ Deserialize, Deserializer, Serialize };
 use serde::de::{ Error as DeError, Visitor };
 use sha2::{ Digest as _, Sha256 };
-use std::{ fmt, fs };
+use std::{ fmt, fs, mem };
 use std::borrow::Cow;
 use std::io::{ self, Read as _, Write as _ };
 use std::sync::Arc;
@@ -33,7 +33,7 @@ fn main() {
 
 async fn async_main() {
 	let mut config_buf = Vec::new();
-	let config = Config::read_or_init(&mut config_buf);
+	let mut config = Config::read_or_init(&mut config_buf);
 
 	let url = format!(
 		"ws://{host}:{port}",
@@ -55,7 +55,6 @@ async fn async_main() {
 		.await
 		.expect("failed to connect to obs");
 
-	// assert_eq!(res.headers().get("sec-websocket-protocol"), "")
 	let protocol = res
 		.headers()
 		.get("sec-websocket-protocol")
@@ -158,6 +157,14 @@ async fn async_main() {
 
 	// todo validate the sources config around here before doing anything else
 	// fetch obs for sources and filters and check
+	for source in &mut config.sources {
+		if source.x_start > source.x_end {
+			mem::swap(&mut source.x_start, &mut source.x_end);
+		}
+		if source.y_start > source.y_end {
+			mem::swap(&mut source.y_start, &mut source.y_end);
+		}
+	}
 
 	let (mut stream_send, mut stream_recv) = stream.split();
 	let (shutdown_send, mut shutdown_recv) = channel::<()>(1);
@@ -216,19 +223,31 @@ async fn async_main() {
 				}
 			};
 
-			for source in &config.source {
+			for source in &mut config.sources {
 				// todo test position against the config
+
+				let x = (source.x_start..=source.x_end).contains(&position.x);
+				let y = (source.y_start..=source.y_end).contains(&position.y);
+				let mut should_enable = x && y;
+				if !source.enable_when_in_bounds {
+					should_enable = !should_enable
+				}
+
+				if should_enable == source.enabled { continue }
+
 				let req = ObsSetSourceFilterEnabled {
 					source_name: Cow::Borrowed(&source.source),
 					filter_name: Cow::Borrowed(&source.filter),
-					// todo
-					filter_enabled: true
+					filter_enabled: should_enable
 				}.wrap_in_request_op_code(Ulid::generate());
 				let req = rmp_serde::to_vec_named(&req).unwrap();
 
 				if let Err(e) = stream_send.send(Message::Binary(Bytes::from(req))).await {
 					eprintln!("error sending request: {e}");
+					continue
 				}
+
+				source.enabled = should_enable;
 			}
 			// todo filter request SetSourceFilterEnabled
 			// todo filter request SetSourceFilterSettings
@@ -249,7 +268,8 @@ struct Config<'h> {
 	general: GeneralConfig,
 	#[serde(borrow)]
 	obs: ObsConfig<'h>,
-	source: Vec<SourceConfig>
+	#[serde(rename = "source")]
+	sources: Vec<SourceConfig>
 }
 
 #[derive(Deserialize)]
@@ -273,10 +293,18 @@ struct SourceConfig {
 	scene: Option<String>,
 	source: String,
 	filter: String,
-	x: u16,
-	y: u16,
-	width: u16,
-	height: u16
+	#[serde(rename = "x-start")]
+	x_start: f32,
+	#[serde(rename = "y-start")]
+	y_start: f32,
+	#[serde(rename = "x-end")]
+	x_end: f32,
+	#[serde(rename = "y-end")]
+	y_end: f32,
+	#[serde(rename = "enable-when-in-bounds")]
+	enable_when_in_bounds: bool,
+	#[serde(default, rename = "opacity-enabled--internal-only-do-not-use-in-config-file")]
+	enabled: bool
 }
 
 impl<'h> Config<'h> {
@@ -382,8 +410,8 @@ struct CctPosition {
 }
 
 struct MadelineScreenPosition {
-	x: u16,
-	y: u16
+	x: f32,
+	y: f32
 }
 
 impl<'de> Deserialize<'de> for MadelineScreenPosition {

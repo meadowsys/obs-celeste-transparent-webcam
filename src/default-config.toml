@@ -17,10 +17,11 @@ port = 4455
 # scene = "scene"
 source = "webcam"
 filter = "opacity"
-x = 0
-y = 0
-width = 0
-height = 0
+enable-when-in-bounds = true
+x-start = 0
+y-start = 0
+x-end = 0
+y-end = 0
 
 # to add more sources, add more sections starting with "[[source]]"
 # and copy all of the options, then customise to your liking
@@ -30,61 +31,68 @@ height = 0
 # # scene = "scene"
 # source = "webcam"
 # filter = "opacity"
-# x = 0
-# y = 0
-# width = 0
-# height = 0
+# enable-when-in-bounds = true
+# x-start = 0
+# y-start = 0
+# x-end = 0
+# y-end = 0
 
 # [[source]]
 # # scene = "scene"
 # source = "webcam"
 # filter = "opacity"
-# x = 0
-# y = 0
-# width = 0
-# height = 0
+# enable-when-in-bounds = true
+# x-start = 0
+# y-start = 0
+# x-end = 0
+# y-end = 0
 
 # [[source]]
 # # scene = "scene"
 # source = "webcam"
 # filter = "opacity"
-# x = 0
-# y = 0
-# width = 0
-# height = 0
+# enable-when-in-bounds = true
+# x-start = 0
+# y-start = 0
+# x-end = 0
+# y-end = 0
 
 # [[source]]
 # # scene = "scene"
 # source = "webcam"
 # filter = "opacity"
-# x = 0
-# y = 0
-# width = 0
-# height = 0
+# enable-when-in-bounds = true
+# x-start = 0
+# y-start = 0
+# x-end = 0
+# y-end = 0
 
 # [[source]]
 # # scene = "scene"
 # source = "webcam"
 # filter = "opacity"
-# x = 0
-# y = 0
-# width = 0
-# height = 0
+# enable-when-in-bounds = true
+# x-start = 0
+# y-start = 0
+# x-end = 0
+# y-end = 0
 
 # [[source]]
 # # scene = "scene"
 # source = "webcam"
 # filter = "opacity"
-# x = 0
-# y = 0
-# width = 0
-# height = 0
+# enable-when-in-bounds = true
+# x-start = 0
+# y-start = 0
+# x-end = 0
+# y-end = 0
 
 # [[source]]
 # # scene = "scene"
 # source = "webcam"
 # filter = "opacity"
-# x = 0
-# y = 0
-# width = 0
-# height = 0
+# enable-when-in-bounds = true
+# x-start = 0
+# y-start = 0
+# x-end = 0
+# y-end = 0
