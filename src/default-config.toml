@@ -8,8 +8,9 @@ port = 4455
 # password = ""
 
 [[source]]
-source-name = "webcam"
-filter-name = "opacity"
+# scene = "scene"
+source = "webcam"
+filter = "opacity"
 x = 0
 y = 0
 width = 0
@@ -20,56 +21,63 @@ height = 0
 # there is no theoretical limit on the amount of sources
 
 # [[source]]
-# source-name = "webcam"
-# filter-name = "opacity"
+# # scene = "scene"
+# source = "webcam"
+# filter = "opacity"
 # x = 0
 # y = 0
 # width = 0
 # height = 0
 
 # [[source]]
-# source-name = "webcam"
-# filter-name = "opacity"
+# # scene = "scene"
+# source = "webcam"
+# filter = "opacity"
 # x = 0
 # y = 0
 # width = 0
 # height = 0
 
 # [[source]]
-# source-name = "webcam"
-# filter-name = "opacity"
+# # scene = "scene"
+# source = "webcam"
+# filter = "opacity"
 # x = 0
 # y = 0
 # width = 0
 # height = 0
 
 # [[source]]
-# source-name = "webcam"
-# filter-name = "opacity"
+# # scene = "scene"
+# source = "webcam"
+# filter = "opacity"
 # x = 0
 # y = 0
 # width = 0
 # height = 0
 
 # [[source]]
-# source-name = "webcam"
-# filter-name = "opacity"
+# # scene = "scene"
+# source = "webcam"
+# filter = "opacity"
 # x = 0
 # y = 0
 # width = 0
 # height = 0
 
 # [[source]]
-# source-name = "webcam"
-# filter-name = "opacity"
+# # scene = "scene"
+# source = "webcam"
+# filter = "opacity"
 # x = 0
 # y = 0
 # width = 0
 # height = 0
 
 # [[source]]
-# source-name = "webcam"
-# filter-name = "opacity"
+# # scene = "scene"
+# source = "webcam"
+# filter = "opacity"
 # x = 0
 # y = 0
 # width = 0

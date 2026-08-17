@@ -22,11 +22,12 @@ fn main() {
 }
 
 async fn async_main() {
-	let config = Config::read_or_init();
+	let mut config_buf = Vec::new();
+	let config = Config::read_or_init(&mut config_buf);
 	let url = format!(
 		"ws://{host}:{port}",
-		host = config.obs_config.host,
-		port = config.obs_config.port
+		host = config.obs.host,
+		port = config.obs.port
 	);
 	let mut req = url
 		.into_client_request()
@@ -68,10 +69,11 @@ async fn async_main() {
 	let hello = rmp_serde::from_slice::<OpCode<ObsHello<'_>>>(&hello)
 		.expect("failed to deserialise obs hello");
 
+	assert_eq!(hello.op, 0, "invalid opcode (expected 0)");
 	assert_eq!(hello.d.rpc_version, 1, "unsupported rpc version (expected 1)");
 
 	let auth_str = hello.d.auth.map(|auth| {
-		let Some(pw) = config.obs_config.password.as_ref() else {
+		let Some(pw) = config.obs.password.as_ref() else {
 			panic!("obs requires a password but none was provided");
 		};
 
@@ -106,6 +108,7 @@ async fn async_main() {
 		d: ObsIdentify {
 			rpc_version: 1,
 			authentication: auth_str.as_deref(),
+			// todo
 			event_subscriptions: const {
 				0
 			}
@@ -133,38 +136,54 @@ async fn async_main() {
 		}
 		_ => { panic!("expected obs response to identify msg to be binary identified msg") }
 	};
+
+	let identified = rmp_serde::from_slice::<OpCode<ObsIdentified>>(&identified)
+		.expect("failed to deserialise obs identified");
+
+	assert_eq!(identified.op, 2, "invalid opcode (expected 2)");
+	assert_eq!(identified.d.negotiated_rpc_version, 1, "invalid negotiated rpc version (expected 1)");
+
+	// todo SetSourceFilterEnabled
+	// todo CurrentProgramSceneChanged for tracking scenes
+	// todo event EventSubscription::Scenes (1 << 2)
+	// todo filter request SetSourceFilterEnabled
+	// todo filter request SetSourceFilterSettings
+
 }
 
 #[derive(Deserialize)]
-struct Config {
-	#[serde(rename = "obs")]
-	obs_config: ObsConfig,
-	#[serde(rename = "source")]
-	source_config: Vec<SourceConfig>
+struct Config<'h> {
+	#[serde(borrow)]
+	obs: ObsConfig<'h>,
+	#[serde(borrow)]
+	source: Vec<SourceConfig<'h>>
 }
 
 #[derive(Deserialize)]
-struct ObsConfig {
-	host: String,
+struct ObsConfig<'h> {
+	#[serde(borrow)]
+	host: Cow<'h, str>,
 	port: u16,
 	#[serde(default)]
-	password: Option<String>
+	password: Option<Cow<'h, str>>
 }
 
 #[derive(Deserialize)]
-struct SourceConfig {
-	#[serde(rename = "source-name")]
-	source_name: String,
-	#[serde(rename = "filter-name")]
-	filter_name: String,
+struct SourceConfig<'h> {
+	#[serde(borrow, default)]
+	scene: Option<Cow<'h, str>>,
+	#[serde(borrow)]
+	source: Cow<'h, str>,
+	#[serde(borrow)]
+	filter: Cow<'h, str>,
 	x: u16,
 	y: u16,
 	width: u16,
 	height: u16
 }
 
-impl Config {
-	fn read_or_init() -> Self {
+impl<'h> Config<'h> {
+	fn read_or_init(buf: &'h mut Vec<u8>) -> Self {
 		let path = "obs-celeste-transparent-webcam-config.toml";
 
 		macro_rules! config_err {
@@ -178,10 +197,9 @@ impl Config {
 
 		match file {
 			Ok(mut file) => {
-				let mut buf = Vec::new();
-				file.read_to_end(&mut buf).unwrap_or_else(|e| config_err!(open e));
+				file.read_to_end(buf).unwrap_or_else(|e| config_err!(open e));
 
-				toml::from_slice(&buf).unwrap_or_else(|e| config_err!(open e))
+				toml::from_slice(buf).unwrap_or_else(|e| config_err!(open e))
 			}
 
 			Err(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
@@ -242,4 +260,10 @@ struct ObsIdentify<'h> {
 	// at the time of writing, only goes up to 1 << 19
 	#[serde(rename = "eventSubscriptions")]
 	event_subscriptions: u32
+}
+
+#[derive(Deserialize)]
+struct ObsIdentified {
+	#[serde(rename = "negotiatedRpcVersion")]
+	negotiated_rpc_version: usize
 }
