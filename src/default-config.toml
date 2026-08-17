@@ -4,7 +4,8 @@
 [obs]
 host = "127.0.0.1"
 port = 4455
-password = ""
+# uncomment this to use a password
+# password = ""
 
 [[source]]
 source-name = "webcam"
