@@ -203,6 +203,9 @@ async fn async_main() {
 		while matches!(shutdown_recv.try_recv(), Err(TryRecvError::Empty)) {
 			interval.tick().await;
 
+			// todo handle the error cases and force disable the filter (treat it as if madeline was not in the box)
+			// likely requires refactoring the request logic to its own function and other organisation
+
 			// todo fetch localhost api and send updates as needed
 			let position = match reqwest::get("http://localhost:32270/cct/madelineScreenPosition").await {
 				Ok(position) => { position }
