@@ -1,0 +1,75 @@
+# any line starting with a # is a comment and will be ignored
+
+# obs websocket connection settings
+[obs]
+host = "127.0.0.1"
+port = 4455
+password = ""
+
+[[source]]
+source-name = "webcam"
+filter-name = "opacity"
+x = 0
+y = 0
+width = 0
+height = 0
+
+# to add more sources, add more sections starting with "[[source]]"
+# and copy all of the options, then customise to your liking
+# there is no theoretical limit on the amount of sources
+
+# [[source]]
+# source-name = "webcam"
+# filter-name = "opacity"
+# x = 0
+# y = 0
+# width = 0
+# height = 0
+
+# [[source]]
+# source-name = "webcam"
+# filter-name = "opacity"
+# x = 0
+# y = 0
+# width = 0
+# height = 0
+
+# [[source]]
+# source-name = "webcam"
+# filter-name = "opacity"
+# x = 0
+# y = 0
+# width = 0
+# height = 0
+
+# [[source]]
+# source-name = "webcam"
+# filter-name = "opacity"
+# x = 0
+# y = 0
+# width = 0
+# height = 0
+
+# [[source]]
+# source-name = "webcam"
+# filter-name = "opacity"
+# x = 0
+# y = 0
+# width = 0
+# height = 0
+
+# [[source]]
+# source-name = "webcam"
+# filter-name = "opacity"
+# x = 0
+# y = 0
+# width = 0
+# height = 0
+
+# [[source]]
+# source-name = "webcam"
+# filter-name = "opacity"
+# x = 0
+# y = 0
+# width = 0
+# height = 0

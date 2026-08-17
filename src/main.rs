@@ -2,12 +2,30 @@ use serde::Deserialize;
 use std::fs;
 use std::io::{ self, Read as _, Write as _ };
 
+// todo figure out if we can modify filter settings from ws, if so we can do gradual opacity
+// use new config section for that i think, [[transparency-source]] or something idk
+
 fn main() {
 	let config = Config::read_or_init();
 }
 
 #[derive(Deserialize)]
 struct Config {
+	#[serde(rename = "obs")]
+	obs_config: ObsConfig,
+	#[serde(rename = "source")]
+	source_config: Vec<SourceConfig>
+}
+
+#[derive(Deserialize)]
+struct ObsConfig {
+	host: String,
+	port: u16,
+	password: String
+}
+
+#[derive(Deserialize)]
+struct SourceConfig {
 	#[serde(rename = "source-name")]
 	source_name: String,
 	#[serde(rename = "filter-name")]
@@ -20,7 +38,7 @@ struct Config {
 
 impl Config {
 	fn read_or_init() -> Self {
-		let path = "obs-celeste-transparent-webcam-config.txt";
+		let path = "obs-celeste-transparent-webcam-config.toml";
 
 		macro_rules! config_err {
 			(open $e:ident) => { panic!("errored trying to open config file: {}", $e) };
@@ -50,7 +68,7 @@ impl Config {
 					Err(e) => { config_err!(write e) }
 				};
 
-				let default_config = include_bytes!("./default-config.txt");
+				let default_config = include_bytes!("./default-config.toml");
 				file.write_all(default_config)
 					.unwrap_or_else(|e| config_err!(write e));
 
