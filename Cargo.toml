@@ -1,0 +1,10 @@
+[package]
+name = "obs-celeste-transparent-webcam"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rmp-serde = "1.3.1"
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.4"
+tungstenite = "0.30.0"
