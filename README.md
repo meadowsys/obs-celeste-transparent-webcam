@@ -46,6 +46,12 @@ This section assumes you have basic knowledge on how to use a terminal.
 - `x-end` is `x` + `width`, and `y-end` is `y` + `height` (`x-end` and `y-end` describes coordinates rather than the width of the rectangle region)
 - Changing `enable-when-in-bounds` to false will make the program _disable_ a filter when madeline enters the region and _enable_ it when she leaves
 
+## viddie's script works!! why make a new one?
+
+Main reason: I use a Mac and streamer.bot has officially stated in their documentation that they do not officially support anything other than windows. Additionally, it does not seem to be open source, so I can't even try to build it myself.
+
+Secondary reason: more nice to have features! and also a fun little side project to learn about OBS and its APIs.
+
 [CCT]: https://gamebanana.com/mods/358978
 [releases page]: https://github.com/meadowsys/obs-celeste-transparent-webcam/releases
 [`rustup`]: https://rust-lang.org/tools/install/
