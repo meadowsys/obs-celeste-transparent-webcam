@@ -1,3 +1,13 @@
+-- This file *was* a lua script for OBS itself... until we learned that OBS provides
+-- no inbuilt way to make HTTP requests. This is for good reason.. apparently scripts
+-- only run single threaded with the rest of the program, so if the request to CCT
+-- cannot complete in a very short and *consistent* (haha funny pun) amount of time,
+-- we will cause frames to be dropped.
+--
+-- Ideally it's a self contained script in OBS and we don't have to worry about
+-- people not knowing how to use CLIs, and needing to make a standalone GUI program
+-- because of that, just to perform what should be a very simple task.
+
 local bit = require("bit")
 
 local IGNORED_SOURCE_IDS = {
