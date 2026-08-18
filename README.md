@@ -1,6 +1,8 @@
 # OBS + Celeste transparent webcam
 
-Little standalone, _fully cross platform and open source_ tool that tracks Madeline's position in game with the help of [CCT] and makes your webcam transparent.
+Little standalone, _fully cross platform and open source_ tool that tracks Madeline's position in game with the help of [CCT] and makes your webcam transparent when she enters the webcam region.
+
+This extends to enabling/disabling any filter, on any source, for any number of sources/filters, based on Madeline's position.
 
 ## Features
 
@@ -8,6 +10,7 @@ Little standalone, _fully cross platform and open source_ tool that tracks Madel
 - [x] Activate/deactivate any filter on any source based on Madeline's positioning
 - [ ] Act only in specific OBS scenes (filter by active scene)
 - [ ] Gradually get more transparent as madeline approaches region
+- [ ] Autodetect region to make transparent for a source based on its position in the OBS canvas
 - [ ] Ability to set irregular shapes for the region (using an image mask?)
 - [x] Do all of the above for unlimited sources
 - [ ] lightweight GUI for configuration (instead of being CLI and config file based only, for a nicer user experience)

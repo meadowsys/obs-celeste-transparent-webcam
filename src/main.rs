@@ -23,6 +23,9 @@ use ulid::Ulid;
 // todo figure out if we can modify filter settings from ws, if so we can do gradual opacity
 // use new config section for that i think, [[transparency-source]] or something idk
 
+// todo set default for when not ingame
+// todo set default for when in the wrong scene (takes priority over not ingame)
+
 fn main() {
 	tokio::runtime::Builder::new_current_thread()
 		.enable_all()
@@ -185,6 +188,7 @@ async fn async_main() {
 					if let Some(Ok(Message::Binary(msg))) = msg
 						&& let Ok(msg) = rmp_serde::from_slice::<serde_json::Value>(&msg)
 					{
+						// todo use dashmap to store ids with their reuquest detalis if needed?
 						dbg!(msg);
 					}
 				}
