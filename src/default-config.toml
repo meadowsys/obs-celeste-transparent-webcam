@@ -25,7 +25,7 @@ y-end = 0
 
 # to add more sources, add more sections starting with "[[source]]"
 # and copy all of the options, then customise to your liking
-# there is no theoretical limit on the amount of sources
+# there is no limit on the amount of sources
 
 # [[source]]
 # # scene = "scene"
