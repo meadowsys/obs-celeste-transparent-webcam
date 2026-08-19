@@ -212,35 +212,40 @@ async fn async_main() {
 
 			// todo fetch localhost api and send updates as needed
 			let position = match reqwest::get("http://localhost:32270/cct/madelineScreenPosition").await {
-				Ok(position) => { position }
+				Ok(position) => { Some(position.json::<CctPosition>().await) }
 				// todo add timestamps?
 				Err(e) => {
 					eprintln!("error fetching from CCT: {e}");
-					continue
+					None
 				}
 			};
 
-			let position = match position.json::<CctPosition>().await {
-				Ok(CctPosition { madeline_screen_position }) => { madeline_screen_position }
-				Err(e) => {
+			// holy shit this is ugly pls fix this eventually
+			let position = match position {
+				Some(Ok(CctPosition { madeline_screen_position })) => { Some(madeline_screen_position) }
+				Some(Err(e)) => {
 					// todo add timestamps
 					// todo better handling of the "out of map" case to not spam console
 					eprintln!("error parsing CCT response: {e:?}");
-					continue
+					None
 				}
+				None => { None }
 			};
 
 			for source in &mut config.sources {
 				// todo test position against the config
 
-				let x = (source.x_start..=source.x_end).contains(&position.x);
-				let y = (source.y_start..=source.y_end).contains(&position.y);
-				let mut should_enable = x && y;
+				let mut should_enable = position.as_ref().map(|position| {
+					let x = (source.x_start..=source.x_end).contains(&position.x);
+					let y = (source.y_start..=source.y_end).contains(&position.y);
+					x && y
+				}).unwrap_or(false);
+
 				if !source.enable_when_in_bounds {
 					should_enable = !should_enable
 				}
 
-				if should_enable == source.enabled { continue }
+				if Some(should_enable) == source.enabled { continue }
 
 				let req = ObsSetSourceFilterEnabled {
 					source_name: Cow::Borrowed(&source.source),
@@ -254,7 +259,7 @@ async fn async_main() {
 					continue
 				}
 
-				source.enabled = should_enable;
+				source.enabled = Some(should_enable);
 			}
 			// todo filter request SetSourceFilterEnabled
 			// todo filter request SetSourceFilterSettings
@@ -311,7 +316,7 @@ struct SourceConfig {
 	#[serde(rename = "enable-when-in-bounds")]
 	enable_when_in_bounds: bool,
 	#[serde(default, rename = "opacity-enabled--internal-only-do-not-use-in-config-file")]
-	enabled: bool
+	enabled: Option<bool>
 }
 
 impl<'h> Config<'h> {
