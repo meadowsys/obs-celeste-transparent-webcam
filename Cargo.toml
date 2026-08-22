@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 ct-codecs = "1.1.7"
 futures = { version = "0.3.34", default-features = false }
+obs-ws = { git = "https://github.com/meadowsys/obs-ws", rev = "eacaf1dace7f3d9913ee3670c18b9682ac359b3a", default-features = false }
 # we make one (1) http request. would be good to find something more lightweight
 # unfortunately, json is because CCT uses it
 reqwest = { version = "0.13.4", default-features = false, features = ["json"] }
@@ -18,3 +19,20 @@ tokio = { version = "1.53.1", features = ["full"] }
 toml = "1.1.4"
 tokio-tungstenite = "0.30.0"
 ulid = { version = "3.0.0", features = ["serde"] }
+
+[features]
+default = [
+	"ws-impl-tokio-tungstenite"
+]
+
+ws-impl-fastwebsockets = [
+	"obs-ws/ws-impl-fastwebsockets"
+]
+
+ws-impl-tokio-tungstenite = [
+	"obs-ws/ws-impl-tokio-tungstenite"
+]
+
+ws-impl-web-socket = [
+	"obs-ws/ws-impl-web-socket"
+]

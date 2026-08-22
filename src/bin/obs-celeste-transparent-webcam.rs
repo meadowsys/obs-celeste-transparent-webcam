@@ -350,7 +350,7 @@ impl<'h> Config<'h> {
 					Err(e) => { config_err!(write e) }
 				};
 
-				let default_config = include_bytes!("./default-config.toml");
+				let default_config = include_bytes!("../default-config.toml");
 				file.write_all(default_config)
 					.unwrap_or_else(|e| config_err!(write e));
 
