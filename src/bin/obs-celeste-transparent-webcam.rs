@@ -7,6 +7,7 @@ use std::{ fmt, fs, mem };
 use std::borrow::Cow;
 use std::io::{ self, Read as _, Write as _ };
 use std::sync::Arc;
+use std::sync::atomic::{ AtomicU64, Ordering };
 use std::time::Duration;
 use tokio::signal::ctrl_c;
 use tokio::sync::Semaphore;
@@ -18,7 +19,8 @@ use tokio_tungstenite::tungstenite::Bytes;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
 use tokio_tungstenite::tungstenite::http::header::HeaderValue;
 use tokio_tungstenite::tungstenite::protocol::{ CloseFrame, Message };
-use ulid::Ulid;
+
+static ID_GEN: AtomicU64 = AtomicU64::new(0);
 
 // todo figure out if we can modify filter settings from ws, if so we can do gradual opacity
 // use new config section for that i think, [[transparency-source]] or something idk
@@ -275,7 +277,7 @@ async fn async_main() {
 					source_name: Cow::Borrowed(&source.source),
 					filter_name: Cow::Borrowed(&source.filter),
 					filter_enabled: should_enable
-				}.wrap_in_request_op_code(Ulid::generate());
+				}.wrap_in_request_op_code(ID_GEN.fetch_add(1, Ordering::Relaxed));
 				let req = rmp_serde::to_vec_named(&req).unwrap();
 
 				if let Err(e) = stream_send.send(Message::Binary(Bytes::from(req))).await {
@@ -436,7 +438,7 @@ struct ObsRequest<'h, T> {
 	#[serde(rename = "requestType")]
 	request_type: Cow<'h, str>,
 	#[serde(rename = "requestId")]
-	request_id: Ulid,
+	request_id: u64,
 	#[serde(rename = "requestData")]
 	request_data: T
 }
@@ -508,7 +510,7 @@ impl<'h> ObsRequestType for ObsSetSourceFilterEnabled<'h> {
 }
 
 trait WrapInOpCode: Sized {
-	fn wrap_in_request_op_code(self, request_id: Ulid) -> OpCode<ObsRequest<'static, Self>>
+	fn wrap_in_request_op_code(self, request_id: u64) -> OpCode<ObsRequest<'static, Self>>
 	where
 		Self: ObsRequestType
 	{
