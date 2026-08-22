@@ -50,7 +50,7 @@ async fn async_main() {
 	req
 		.headers_mut()
 		.insert(
-			"Sec-WebSocket-Protocol",
+			"sec-websocket-protocol",
 			HeaderValue::from_static("obswebsocket.msgpack")
 		);
 
