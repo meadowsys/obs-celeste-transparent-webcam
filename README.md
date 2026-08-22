@@ -35,8 +35,8 @@ This section assumes you have basic knowledge on how to use a terminal.
 
 - Install [`git`] and Rust via [`rustup`]
 - Clone the repository to wherever you want it to be using `git clone https://github.com/meadowsys/obs-celeste-transparent-webcam`
-- Build with `cargo build --release`
-- Run the binary with `cargo run --release`. Alternatively, copy the binary out from `target/release/obs-celeste-transparent-webcam` and delete at least `target` (the intermediate build artifacts) to save storage space
+- Build with `cargo build --release --bin obs-celeste-transparent-webcam`
+- Run the binary with `cargo run --release --bin obs-celeste-transparent-webcam`. Alternatively, copy the binary out from `target/release/obs-celeste-transparent-webcam` and delete at least `target` (the intermediate build artifacts) to save storage space
 - Continue setting up with [the section above](#setting-up-the-program)
 
 ## Notable differences from viddie's ParrotTransparentCam
