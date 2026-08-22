@@ -215,31 +215,55 @@ async fn async_main() {
 				Ok(position) => { Some(position.json::<CctPosition>().await) }
 				// todo add timestamps?
 				Err(e) => {
-					eprintln!("error fetching from CCT: {e}");
+					eprintln!("error fetching position from CCT: {e}");
 					None
 				}
 			};
 
-			// holy shit this is ugly pls fix this eventually
+			// todo holy shit this is ugly pls fix this eventually
 			let position = match position {
 				Some(Ok(CctPosition { madeline_screen_position })) => { Some(madeline_screen_position) }
 				Some(Err(e)) => {
 					// todo add timestamps
 					// todo better handling of the "out of map" case to not spam console
-					eprintln!("error parsing CCT response: {e:?}");
+					eprintln!("error parsing CCT position response: {e:?}");
+					None
+				}
+				None => { None }
+			};
+
+			let state = match reqwest::get("http://localhost:32270/cct/state").await {
+				Ok(state) => { Some(state.json::<CctState>().await) }
+				Err(e) => {
+					eprintln!("error fetching state from CCT: {e}");
+					None
+				}
+			};
+
+			// todo holy shit this is ugly pls fix this eventually (part 2)
+			let state = match state {
+				Some(Ok(CctState { mod_state: CctModState { chapter_completed } })) => { Some(chapter_completed) }
+				Some(Err(e)) => {
+					// todo add timestamps
+					// todo better handling of the "not yet in map" case to not spam console
+					eprintln!("error parsing CCT state response: {e}");
 					None
 				}
 				None => { None }
 			};
 
 			for source in &mut config.sources {
-				// todo test position against the config
+				// we should enable transparency when one of the below is true:
+				// - position parses and we're within bounds
+				// - state parses and chapter_completed is true (while config allows this)
 
 				let mut should_enable = position.as_ref().map(|position| {
 					let x = (source.x_start..=source.x_end).contains(&position.x);
 					let y = (source.y_start..=source.y_end).contains(&position.y);
 					x && y
 				}).unwrap_or(false);
+
+				should_enable = should_enable || (state.unwrap_or(false) && source.trigger_when_chapter_completed);
 
 				if !source.enable_when_in_bounds {
 					should_enable = !should_enable
@@ -315,6 +339,8 @@ struct SourceConfig {
 	y_end: f32,
 	#[serde(rename = "enable-when-in-bounds")]
 	enable_when_in_bounds: bool,
+	#[serde(rename = "trigger-when-chapter-completed")]
+	trigger_when_chapter_completed: bool,
 	#[serde(default, rename = "opacity-enabled--internal-only-do-not-use-in-config-file")]
 	enabled: Option<bool>
 }
@@ -451,6 +477,18 @@ impl<'de> Deserialize<'de> for MadelineScreenPosition {
 
 		deserializer.deserialize_str(SmolSquishVisitor)
 	}
+}
+
+#[derive(Deserialize)]
+struct CctState {
+	#[serde(rename = "modState")]
+	mod_state: CctModState
+}
+
+#[derive(Deserialize)]
+struct CctModState {
+	#[serde(rename = "chapterCompleted")]
+	chapter_completed: bool
 }
 
 #[derive(Serialize)]
