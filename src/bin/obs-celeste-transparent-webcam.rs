@@ -186,12 +186,24 @@ async fn async_main() {
 			tokio::select! {
 				biased;
 				msg = stream_recv.next() => {
-					// todo dumping msgs for now <loopTeehee>
-					if let Some(Ok(Message::Binary(msg))) = msg
-						&& let Ok(msg) = rmp_serde::from_slice::<serde_json::Value>(&msg)
-					{
-						// todo use dashmap to store ids with their reuquest detalis if needed?
-						dbg!(msg);
+					match msg {
+						Some(Ok(Message::Binary(msg))) => {
+							if let Ok(msg) = rmp_serde::from_slice::<serde_json::Value>(&msg) {
+								// dumping msgs for now <loopTeehee>
+								// todo use dashmap to store ids with their reuquest detalis if needed?
+								dbg!(msg);
+							}
+						}
+						Some(Ok(msg)) => {
+							println!("other message received: {msg:#}");
+						}
+						Some(Err(err)) => {
+							println!("err received: {err:?}");
+						}
+						None => {
+							println!("obs has been quit?");
+							break
+						}
 					}
 				}
 				_ = shutdown_recv.recv() => { break }
