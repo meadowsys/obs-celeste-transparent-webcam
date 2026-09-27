@@ -172,13 +172,15 @@ async fn async_main() {
 	}
 
 	let (mut stream_send, mut stream_recv) = stream.split();
-	let (shutdown_send, mut shutdown_recv) = channel::<()>(1);
+	let (_shutdown_send, mut _shutdown_recv) = channel::<()>(1);
 	let semaphore_total = 1000;
 	let semaphore = Arc::new(Semaphore::new(semaphore_total));
 
 	// just consuming all ws msgs for now since we have not yet a use for them
 	// todo
 	let _semaphore = Arc::clone(&semaphore);
+	let mut shutdown_recv = _shutdown_recv.resubscribe();
+	let shutdown_send = _shutdown_send.clone();
 	spawn(async move {
 		let _permit = _semaphore.acquire_owned();
 
@@ -202,6 +204,7 @@ async fn async_main() {
 						}
 						None => {
 							println!("obs has been quit?");
+							shutdown_send.send(()).unwrap();
 							break
 						}
 					}
@@ -209,10 +212,12 @@ async fn async_main() {
 				_ = shutdown_recv.recv() => { break }
 			}
 		}
+
+		println!("message receive task quit");
 	});
 
 	let _semaphore = Arc::clone(&semaphore);
-	let mut shutdown_recv = shutdown_send.subscribe();
+	let mut shutdown_recv = _shutdown_recv.resubscribe();
 	spawn(async move {
 		let _permit = _semaphore.acquire_owned();
 		let mut interval = interval(Duration::from_millis(config.general.position_polling_interval as _));
@@ -302,12 +307,21 @@ async fn async_main() {
 			// todo filter request SetSourceFilterEnabled
 			// todo filter request SetSourceFilterSettings
 		}
+
+		println!("message send task quit");
 	});
 
 	// todo CurrentProgramSceneChanged for tracking scenes
 	// do this via spsc
 
-	ctrl_c().await.expect("failed to listen for ctrl+c");
+	tokio::select! {
+		biased;
+		_ = ctrl_c() => {
+			_shutdown_send.send(()).unwrap();
+		}
+		_ = _shutdown_recv.recv() => {}
+	}
+
 	while semaphore.available_permits() != semaphore_total {
 		sleep(Duration::from_millis(500)).await;
 	}
